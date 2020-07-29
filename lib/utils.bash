@@ -2,8 +2,7 @@
 
 set -euo pipefail
 
-# TODO: Ensure this is the correct GitHub homepage where releases can be downloaded for sonobuoy.
-GH_REPO="https://github.com/mikesplain/asdf-sonobuoy"
+GH_REPO="https://github.com/vmware-tanzu/sonobuoy"
 
 fail() {
   echo -e "asdf-sonobuoy: $*"
@@ -29,7 +28,6 @@ list_github_tags() {
 }
 
 list_all_versions() {
-  # TODO: Adapt this. By default we simply list the tag names from GitHub releases.
   # Change this function if sonobuoy has other means of determining installable versions.
   list_github_tags
 }
@@ -39,10 +37,14 @@ download_release() {
   version="$1"
   filename="$2"
 
-  # TODO: Adapt the release URL convention for sonobuoy
-  url="$GH_REPO/archive/v${version}.tar.gz"
+  local platform
+  [ "Linux" = "$(uname)" ] && platform="linux" || platform="darwin"
+  local arch
+  [ "x86_64" = "$(uname -m)" ] && arch="amd64" || arch="386"
 
+  url="$GH_REPO/releases/download/v${version}/sonobuoy_${version}_${platform}_${arch}.tar.gz"
   echo "* Downloading sonobuoy release $version..."
+  echo "* URL: $url"
   curl "${curl_opts[@]}" -o "$filename" -C - "$url" || fail "Could not download $url"
 }
 
@@ -51,26 +53,34 @@ install_version() {
   local version="$2"
   local install_path="$3"
 
+  local platform
+  [ "Linux" = "$(uname)" ] && platform="linux" || platform="darwin"
+  local arch
+  [ "x86_64" = "$(uname -m)" ] && arch="amd64" || arch="386"
+
   if [ "$install_type" != "version" ]; then
     fail "asdf-sonobuoy supports release installs only"
   fi
 
-  # TODO: Adapt this to proper extension and adapt extracting strategy.
-  local release_file="$install_path/sonobuoy-$version.tar.gz"
+  local release_file="$install_path/sonobuoy_${version}_${platform}_${arch}.tar.gz"
+  echo releasefile: $release_file
+
   (
     mkdir -p "$install_path"
     download_release "$version" "$release_file"
-    tar -xzf "$release_file" -C "$install_path" --strip-components=1 || fail "Could not extract $release_file"
+    tar -xzf "$release_file" -C "$install_path" || fail "Could not extract $release_file"
+    mkdir -p "$install_path/bin"
+    mv "$install_path/sonobuoy" ""$install_path/bin/sonobuoy
     rm "$release_file"
 
-    # TODO: Asert sonobuoy executable exists.
     local tool_cmd
-    tool_cmd="$(echo "sonobuoy version" | cut -d' ' -f2-)"
+    tool_cmd="sonobuoy"
     test -x "$install_path/bin/$tool_cmd" || fail "Expected $install_path/bin/$tool_cmd to be executable."
 
     echo "sonobuoy $version installation was successful!"
   ) || (
     rm -rf "$install_path"
     fail "An error ocurred while installing sonobuoy $version."
+    echo fail
   )
 }
