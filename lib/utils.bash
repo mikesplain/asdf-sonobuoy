@@ -44,7 +44,6 @@ download_release() {
 
   url="$GH_REPO/releases/download/v${version}/sonobuoy_${version}_${platform}_${arch}.tar.gz"
   echo "* Downloading sonobuoy release $version..."
-  echo "* URL: $url"
   curl "${curl_opts[@]}" -o "$filename" -C - "$url" || fail "Could not download $url"
 }
 
